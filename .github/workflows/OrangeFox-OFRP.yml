@@ -98,6 +98,7 @@ jobs:
         # (official gitlab.com/OrangeFox/sync dropped these branches - only 16.0/14.1/12.1 remain).
         git clone https://github.com/momo54181/sync.git
         cd sync
+        chmod 777 orangefox_sync.sh
         ./orangefox_sync.sh --branch ${{ inputs.MANIFEST_BRANCH }} --path ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}
       
     - name: Clone Device Tree
