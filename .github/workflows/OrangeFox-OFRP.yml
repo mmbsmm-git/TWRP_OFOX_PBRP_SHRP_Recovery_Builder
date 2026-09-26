@@ -11,6 +11,8 @@ on:
         options:
         - 12.1
         - 11.0
+        - 10.0
+        - 9.0
       DEVICE_TREE:
         description: 'Custom Recovery Tree'
         required: true
@@ -27,6 +29,10 @@ on:
         description: 'Specify your Device Path (Check the DEVICE_PATH in BoardConfig.mk)' # As is, just like your DEVICE_PATH in your BoardConfig.mk
         required: true
         default: 'device/device`s_company/Codename'
+      MAKEFILE_NAME:
+        description: 'Makefile name for lunch (eg. omni_<codename>, twrp_<codename>). Leave blank to auto-derive from DEVICE_NAME.' # Android 9/10 trees usually use omni_, 12.1 often twrp_.
+        required: false
+        default: ''
       BUILD_TARGET:
         description: 'Specify your Build Target' # The image suffix will be added later in build step.
         required: true
@@ -88,7 +94,9 @@ jobs:
         cd ${GITHUB_WORKSPACE}/OrangeFox
         git config --global user.name "${{ github.actor }}"
         git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-        git clone https://gitlab.com/OrangeFox/sync.git -b master
+        # Use momo54181's fork of OrangeFox sync, which retains 9.0/10.0/11.0 support
+        # (official gitlab.com/OrangeFox/sync dropped these branches - only 16.0/14.1/12.1 remain).
+        git clone https://github.com/momo54181/sync.git
         cd sync
         ./orangefox_sync.sh --branch ${{ inputs.MANIFEST_BRANCH }} --path ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}
       
@@ -109,7 +117,15 @@ jobs:
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
         set -e
-        lunch twrp_${{ inputs.DEVICE_NAME }}-eng && make clean && mka adbd ${{ inputs.BUILD_TARGET }}image
+        # lunch target: use MAKEFILE_NAME if provided, otherwise default to omni_<codename> for 9.0/10.0
+        if [ -n "${{ inputs.MAKEFILE_NAME }}" ]; then
+            LUNCH_TARGET="${{ inputs.MAKEFILE_NAME }}-eng"
+        elif [ "${{ inputs.MANIFEST_BRANCH }}" = "12.1" ]; then
+            LUNCH_TARGET="twrp_${{ inputs.DEVICE_NAME }}-eng"
+        else
+            LUNCH_TARGET="omni_${{ inputs.DEVICE_NAME }}-eng"
+        fi
+        lunch $LUNCH_TARGET && make clean && mka adbd ${{ inputs.BUILD_TARGET }}image
         popd
 
     - name: Set Build Date # Build date in UTC
